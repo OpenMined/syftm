@@ -1,0 +1,105 @@
+name: Nightly Submodule Update
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-submodules:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Update all submodules to latest
+        run: |
+          echo "Updating all submodules to their latest main branch..."
+          git submodule update --init --recursive
+          git submodule foreach --recursive 'git checkout main || git checkout master'
+          git submodule foreach --recursive 'git pull origin main || git pull origin master'
+      
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Submodule changes detected"
+            git status --porcelain
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No submodule changes detected"
+          fi
+      
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          # Generate commit message with update details
+          COMMIT_MSG="chore: update submodules to latest [$(date +'%Y-%m-%d')]"
+          
+          # Add detailed update information
+          echo "$COMMIT_MSG" > commit_msg.txt
+          echo "" >> commit_msg.txt
+          echo "Updated submodules:" >> commit_msg.txt
+          git submodule status | while read -r line; do
+            echo "- $line" >> commit_msg.txt
+          done
+          
+          # Stage and commit changes
+          git add .
+          git commit -F commit_msg.txt
+          
+          # Push to main branch
+          git push origin main
+      
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Nightly Submodule Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.check_changes.outputs.changes }}" == "true" ]]; then
+            echo "✅ **Status:** Submodules updated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Updated Submodules:" >> $GITHUB_STEP_SUMMARY
+            git submodule status | while read -r line; do
+              echo "- \`$line\`" >> $GITHUB_STEP_SUMMARY
+            done
+          else
+            echo "ℹ️ **Status:** No updates needed - all submodules are up to date" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Handle failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Nightly Submodule Update Failed - ${new Date().toISOString().split('T')[0]}`,
+              body: `The nightly submodule update workflow failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix the issue.`,
+              labels: ['automated', 'bug']
+            };
+            
+            try {
+              await github.rest.issues.create(issue);
+            } catch (error) {
+              console.error('Failed to create issue:', error);
+            }
