@@ -7,21 +7,12 @@
 [submodule "syftbox-flower"]
 	path = syftbox-flower
 	url = https://github.com/OpenMined/syft-flwr
-[submodule "apps/nsai"]
-	path = apps/nsai
-	url = https://github.com/OpenMined/fraggle
 [submodule "sdks/python"]
 	path = sdks/python
 	url = https://github.com/OpenMined/syft-extras
-[submodule "examples"]
-	path = examples
-	url = https://github.com/OpenMined/syftbox-apps
 [submodule "apps/llm-router"]
 	path = apps/llm-router
 	url = https://github.com/OpenMined/syft-llm-router
 [submodule "apps/rds"]
 	path = apps/rds
 	url = https://github.com/OpenMined/rds
-[submodule "incubator/syftbox-fs"]
-	path = incubator/syftbox-fs
-	url = https://github.com/OpenMined/SyftBoxFS
