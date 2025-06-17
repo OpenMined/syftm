@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# SyftBox test clients directory
+clients/
+
+# UV virtual environment
+.venv/
