@@ -1,9 +1,9 @@
-chore: update submodules to latest [2025-06-17]
+chore: update submodules to latest [2025-06-18]
 
 Updated submodules:
 - e6e663ec649830ddc91f4b77a55388bcc57d7e58 apps/llm-router (heads/main)
-- e0d48d21ca89c7cd6b627b0fd0fedb05a7c273e8 apps/rds (heads/main)
+- +af8679f3ca98fb65b40ab4f99386a93689ee6e43 apps/rds (heads/main)
 - 971373ebc59690b854600a398e89150f6c8528a1 sdks/python (heads/main)
-- +d0575f9d9bdba3d0bb0c85cea669f98f7d8c6a1b syftbox (heads/main)
+- 1083d8e1b85c374555433f719ca5b6f1281c9b12 syftbox (heads/main)
 - ad816ec3140684b5ed951ef2af282594139df472 syftbox-flower (heads/main)
 - 413269c26525e656af5050bd9bc15d9ba09fa29b syftbox-ui (v0.1.20-1-g413269c)
