@@ -26,7 +26,7 @@ setup:
 # Start the server with MinIO
 start-server:
     @echo "Starting SyftBox server with MinIO..."
-    cd {{DOCKER_DIR}} && COMPOSE_BAKE=true docker-compose up -d --build minio server
+    cd {{DOCKER_DIR}} && COMPOSE_BAKE=true docker compose up -d --build minio server
     @echo "Waiting for server to be ready..."
     @sleep 5
     @echo "Server started at http://localhost:8080"
@@ -78,7 +78,7 @@ stop-all:
     @echo "Stopping all services..."
     -docker stop syftbox-client-{{TEST_CLIENT1_NAME}}
     -docker stop syftbox-client-{{TEST_CLIENT2_NAME}}
-    -cd {{DOCKER_DIR}} && docker-compose down
+    -cd {{DOCKER_DIR}} && docker compose down
     @echo "All services stopped."
 
 # Quick restart - reset clients and MinIO state without stopping server
@@ -92,11 +92,11 @@ quick-restart:
     # Remove client data
     -rm -rf {{TEST_CLIENTS_DIR}}
     # Reset MinIO data by recreating the volume
-    -cd {{DOCKER_DIR}} && docker-compose stop minio
-    -cd {{DOCKER_DIR}} && docker-compose rm -f minio
+    -cd {{DOCKER_DIR}} && docker compose stop minio
+    -cd {{DOCKER_DIR}} && docker compose rm -f minio
     -docker volume rm docker_minio-data || true
     # Restart MinIO and server
-    -cd {{DOCKER_DIR}} && docker-compose up -d --build minio server
+    -cd {{DOCKER_DIR}} && docker compose up -d --build minio server
     @echo "Waiting for server to be ready..."
     @sleep 5
     # Restart clients
@@ -110,7 +110,7 @@ clean: stop-all
     @echo "Cleaning up..."
     -docker rm syftbox-client-{{TEST_CLIENT1_NAME}}
     -docker rm syftbox-client-{{TEST_CLIENT2_NAME}}
-    -cd {{DOCKER_DIR}} && docker-compose down -v
+    -cd {{DOCKER_DIR}} && docker compose down -v
     -rm -rf {{TEST_CLIENTS_DIR}}
     @echo "Cleanup complete."
 
