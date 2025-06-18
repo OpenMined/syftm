@@ -27,7 +27,7 @@ jobs:
         python-version: '3.11'
 
     - name: Cache Python dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/uv
@@ -50,7 +50,7 @@ jobs:
         just install-deps
 
     - name: Cache Playwright browsers
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/ms-playwright
@@ -84,7 +84,7 @@ jobs:
         PYTEST_TIMEOUT: 300
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
