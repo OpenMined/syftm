@@ -77,6 +77,10 @@ jobs:
         docker logs syftbox-client-client1-syftbox-net --tail 50
         docker logs syftbox-client-client2-syftbox-net --tail 50
 
+    - name: Fix permissions
+      run: |
+        just fix-permissions
+
     - name: Run integration tests
       run: |
         just test

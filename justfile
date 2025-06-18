@@ -114,6 +114,14 @@ clean: stop-all
     -rm -rf {{TEST_CLIENTS_DIR}}
     @echo "Cleanup complete."
 
+# Fix file permissions for client directories
+fix-permissions:
+    @echo "Fixing file permissions for client directories..."
+    @if [ -d "{{TEST_CLIENTS_DIR}}" ]; then \
+        chmod -R 755 {{TEST_CLIENTS_DIR}} 2>/dev/null || true; \
+        find {{TEST_CLIENTS_DIR}} -type f -exec chmod 644 {} \; 2>/dev/null || true; \
+    fi
+
 # Run the integration tests
 test:
     @echo "Running integration tests..."
