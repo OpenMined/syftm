@@ -118,6 +118,7 @@ clean: stop-all
 fix-permissions:
     @echo "Fixing file permissions for client directories..."
     @if [ -d "{{TEST_CLIENTS_DIR}}" ]; then \
+        sudo chown -R $(id -u):$(id -g) {{TEST_CLIENTS_DIR}} 2>/dev/null || true; \
         chmod -R 755 {{TEST_CLIENTS_DIR}} 2>/dev/null || true; \
         find {{TEST_CLIENTS_DIR}} -type f -exec chmod 644 {} \; 2>/dev/null || true; \
     fi
@@ -126,7 +127,7 @@ fix-permissions:
 test:
     @echo "Running integration tests..."
     @echo "Activating virtual environment and running tests..."
-    . .venv/bin/activate && python -m pytest tests/ -v
+    bash -c "source .venv/bin/activate && python -m pytest tests/ -v"
 
 # Install test dependencies
 install-deps:
@@ -139,7 +140,7 @@ test-full: clean start-all
     @echo "Waiting for services to stabilize..."
     @sleep 10
     @echo "Running tests..."
-    -. .venv/bin/activate && python -m pytest tests/ -v
+    -bash -c "source .venv/bin/activate && python -m pytest tests/ -v"
     @just clean
 
 # Show logs for debugging
