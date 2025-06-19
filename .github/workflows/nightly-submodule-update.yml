@@ -12,7 +12,12 @@ jobs:
     
     permissions:
       contents: write
+      actions: read
     
+    outputs:
+      changes: ${{ steps.check_changes.outputs.changes }}
+      branch_name: ${{ steps.create_branch.outputs.branch_name }}
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,56 +50,118 @@ jobs:
             echo "No submodule changes detected"
           fi
       
-      - name: Commit and push changes
+      # Create a branch and push changes if there are any
+      - name: Create update branch
         if: steps.check_changes.outputs.changes == 'true'
+        id: create_branch
         run: |
-          # Generate commit message with update details
-          COMMIT_MSG="chore: update submodules to latest [$(date +'%Y-%m-%d')]"
-          
-          # Add detailed update information
-          echo "$COMMIT_MSG" > commit_msg.txt
-          echo "" >> commit_msg.txt
-          echo "Updated submodules:" >> commit_msg.txt
-          git submodule status | while read -r line; do
-            echo "- $line" >> commit_msg.txt
-          done
+          BRANCH_NAME="nightly-update-$(date +'%Y%m%d-%H%M%S')"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           
           # Stage and commit changes
           git add .
-          git commit -F commit_msg.txt
+          git commit -m "chore: update submodules to latest [$(date +'%Y-%m-%d')]"
           
-          # Push to main branch
-          git push origin main
+          # Create and push branch
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+
+  # Run integration tests on the update branch
+  run-tests:
+    needs: update-submodules
+    if: needs.update-submodules.outputs.changes == 'true'
+    uses: ./.github/workflows/integration-tests.yml
+    with:
+      ref: ${{ needs.update-submodules.outputs.branch_name }}
+    permissions:
+      contents: read
+      actions: read
       
+  # Merge to main if tests pass
+  merge-updates:
+    needs: [update-submodules, run-tests]
+    if: needs.update-submodules.outputs.changes == 'true' && needs.run-tests.result == 'success'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Merge update branch to main
+        run: |
+          git checkout main
+          git pull origin main
+          git merge origin/${{ needs.update-submodules.outputs.branch_name }} --no-ff -m "Merge nightly submodule updates"
+          git push origin main
+          
+      - name: Delete update branch
+        run: |
+          git push origin --delete ${{ needs.update-submodules.outputs.branch_name }}
+  
+  # Create summary and handle failures
+  summary:
+    needs: [update-submodules, run-tests, merge-updates]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    permissions:
+      issues: write
+      
+    steps:
       - name: Create summary
-        if: always()
         run: |
           echo "## Nightly Submodule Update Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ steps.check_changes.outputs.changes }}" == "true" ]]; then
-            echo "✅ **Status:** Submodules updated successfully" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.update-submodules.outputs.changes }}" == "true" ]]; then
+            echo "### Status:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Updated Submodules:" >> $GITHUB_STEP_SUMMARY
-            git submodule status | while read -r line; do
-              echo "- \`$line\`" >> $GITHUB_STEP_SUMMARY
-            done
+            
+            if [[ "${{ needs.run-tests.result }}" == "success" && "${{ needs.merge-updates.result }}" == "success" ]]; then
+              echo "✅ **Tests passed** - Submodules updated successfully" >> $GITHUB_STEP_SUMMARY
+            elif [[ "${{ needs.run-tests.result }}" == "failure" ]]; then
+              echo "❌ **Tests failed** - Submodule updates NOT merged" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Note:** The submodule updates were not merged due to test failures. Please review the test results and fix any issues." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Workflow failed** - Please check the workflow logs" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "ℹ️ **Status:** No updates needed - all submodules are up to date" >> $GITHUB_STEP_SUMMARY
           fi
       
       - name: Handle failure
-        if: failure()
+        if: needs.run-tests.result == 'failure' || needs.merge-updates.result == 'failure'
         uses: actions/github-script@v7
         with:
           script: |
+            const testsFailed = '${{ needs.run-tests.result }}' === 'failure';
+            const title = testsFailed 
+              ? `Nightly Submodule Update - Tests Failed - ${new Date().toISOString().split('T')[0]}`
+              : `Nightly Submodule Update Failed - ${new Date().toISOString().split('T')[0]}`;
+            
+            const body = testsFailed
+              ? `The nightly submodule update found changes but tests failed.\n\n⚠️ **Submodule updates were NOT merged due to test failures.**\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease review the test failures and fix any compatibility issues with the updated submodules.`
+              : `The nightly submodule update workflow failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix the issue.`;
+            
             const issue = {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Nightly Submodule Update Failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `The nightly submodule update workflow failed.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix the issue.`,
+              title: title,
+              body: body,
               labels: ['automated', 'bug']
             };
             
