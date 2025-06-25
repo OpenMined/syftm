@@ -178,3 +178,5 @@ clients/
 
 # UV virtual environment
 .venv/
+
+.claude
