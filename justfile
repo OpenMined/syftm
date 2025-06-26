@@ -35,7 +35,7 @@ start-server:
 start-client1:
     @echo "Starting client 1 ({{TEST_CLIENT1_EMAIL}})..."
     @echo "Building client image..."
-    @if [ -n "$DOCKER_BUILDX" ]; then \
+    @if [ -n "${DOCKER_BUILDX:-}" ]; then \
         cd {{SYFTBOX_DIR}} && docker buildx build --cache-from=type=gha --cache-to=type=gha,mode=max -f docker/Dockerfile.client -t syftbox-client --load .; \
     else \
         cd {{SYFTBOX_DIR}} && docker build -f docker/Dockerfile.client -t syftbox-client .; \
@@ -127,7 +127,7 @@ fix-permissions:
 test:
     @echo "Running integration tests..."
     @echo "Activating virtual environment and running tests..."
-    bash -c "source .venv/bin/activate && python -m pytest tests/ -v"
+    bash -c "source .venv/bin/activate && python -m pytest tests/ -v -s"
 
 # Install test dependencies
 install-deps:
